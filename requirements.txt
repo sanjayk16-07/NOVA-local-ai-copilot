@@ -1,6 +1,7 @@
 fastapi
-uvicorn[standard]
+uvicorn
 python-dotenv
 httpx
 ollama
+moss
 watchdog
