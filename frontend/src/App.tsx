@@ -5,6 +5,8 @@ type Message = {
   role: "user" | "nova";
   content: string;
   model?: string;
+  retrieval?: string;
+  retrievalLatency?: number | null;
 };
 
 type ProjectFile = {
@@ -51,9 +53,8 @@ function App() {
     },
   ]);
 
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "http://127.0.0.1:8000";
+ const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
    
   // Load project files
   useEffect(() => {
@@ -107,12 +108,11 @@ function App() {
     addActivity(`Processing: ${currentQuery}`);
 
     try {
-      const response = await fetch(
-        `${API_URL}/chat?query=${encodeURIComponent(
-          currentQuery
-        )}`
-      );
-
+  const response = await fetch(
+    `${API_URL}/chat?query=${encodeURIComponent(
+      currentQuery
+    )}`
+    );
       if (!response.ok) {
         throw new Error("Backend request failed");
       }
@@ -121,11 +121,13 @@ function App() {
 
       setMessages((prev) => [
         ...prev,
-        {
-          role: "nova",
-          content: data.answer,
-          model: data.model,
-        },
+      {
+       role: "nova",
+      content: data.answer,
+      model: data.model,
+      retrieval: data.retrieval,
+      retrievalLatency: data.retrieval_latency_ms,
+      }
       ]);
 
       addActivity(
@@ -426,69 +428,51 @@ function App() {
                 </div>
               ) : (
                 <div className="messages">
-                  {messages.map(
-                    (message, index) => (
-                      <div
-                        key={index}
-                        className={`message ${message.role}`}
-                      >
-                        <div className="message-avatar">
-                          {message.role ===
-                          "user"
-                            ? "U"
-                            : "N"}
-                        </div>
-
-                        <div className="message-content">
-                          <div className="message-header">
-                            <strong>
-                              {message.role ===
-                              "user"
-                                ? "You"
-                                : "NOVA"}
-                            </strong>
-
-                            {message.model && (
-                              <span className="model-badge">
-                                {message.model ===
-                                "qwen"
-                                  ? "LOCAL · QWEN"
-                                  : "CLOUD · GEMINI"}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="message-text">
-                            {message.content}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-
-                  {loading && (
-                    <div className="message nova">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`message ${message.role}`}
+                    >
                       <div className="message-avatar">
-                        N
+                        {message.role === "user" ? "U" : "N"}
                       </div>
 
                       <div className="message-content">
                         <div className="message-header">
-                          <strong>NOVA</strong>
+                          <strong>
+                            {message.role === "user" ? "You" : "NOVA"}
+                          </strong>
+
+                          {message.model && (
+                            <span className="model-badge">
+                              {message.model === "qwen"
+                                ? "LOCAL · QWEN"
+                                : "CLOUD · GEMINI"}
+                            </span>
+                          )}
                         </div>
 
-                        <div className="thinking">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                          <em>Thinking...</em>
+                        <div className="message-text">
+                          {message.content}
                         </div>
+
+                        {message.role === "nova" && (
+                          <div className="message-meta">
+                            🔎{" "}
+                            {message.retrieval === "moss"
+                              ? "Moss Retrieval"
+                              : "Local Fallback"}
+                            {message.retrievalLatency !== null &&
+                              message.retrievalLatency !== undefined &&
+                              ` · ${message.retrievalLatency} ms`}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
-            </section>
+              </section>
 
             {/* CHAT INPUT */}
 
