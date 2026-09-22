@@ -102,9 +102,6 @@ function App() {
       },
     ]);
 
-    setQuery("");
-    setLoading(true);
-
     addActivity(`Processing: ${currentQuery}`);
 
     try {
