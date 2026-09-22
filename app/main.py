@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 import os
-
+from app.indexer import search_moss
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,28 +104,55 @@ def files():
         files=documents,
     )
 
-
-# --------------------------------------------------
-# Chat
-# --------------------------------------------------
-
 @app.get("/chat")
 async def chat(query: str):
 
-    # Read safe local project files
-    documents = read_project_files(
-        "data/sample-project"
-    )
-
-    context = "\n\n".join(
-        f"File: {doc['path']}\n{doc['content']}"
-        for doc in documents
-    )
-
-    # Decide local vs cloud
     model = choose_model(query)
 
-    # Local Qwen path
+    # -------------------------
+    # MOSS RETRIEVAL
+    # -------------------------
+
+    retrieval_method = "moss"
+
+    try:
+        moss_result = await search_moss(query)
+
+        retrieved_docs = moss_result.docs
+
+        context_parts = []
+
+        for doc in retrieved_docs:
+            context_parts.append(
+                f"File: {doc.metadata.get('path', 'unknown')}\n"
+                f"{doc.text}"
+            )
+
+        context = "\n\n".join(context_parts)
+
+        retrieval_latency = moss_result.time_taken_ms
+
+    except Exception as e:
+
+        print(f"Moss retrieval failed: {e}")
+
+        retrieval_method = "local-fallback"
+
+        documents = read_project_files(
+            "data/sample-project"
+        )
+
+        context = "\n\n".join(
+            f"File: {doc['path']}\n{doc['content']}"
+            for doc in documents
+        )
+
+        retrieval_latency = None
+
+    # -------------------------
+    # LOCAL QWEN
+    # -------------------------
+
     if model == "local":
 
         answer = await generate_local_answer(
@@ -136,14 +163,22 @@ async def chat(query: str):
         return {
             "query": query,
             "model": "qwen",
+            "retrieval": retrieval_method,
+            "retrieval_latency_ms": retrieval_latency,
             "answer": answer,
         }
 
-    # Cloud Gemini path
-    # Privacy Gateway runs BEFORE external request
+    # -------------------------
+    # PRIVACY GATEWAY
+    # -------------------------
+
     safe_context = prepare_cloud_context(
         context
     )
+
+    # -------------------------
+    # GEMINI / SMALL CLOUD
+    # -------------------------
 
     answer = await generate_gemini_answer(
         query,
@@ -153,5 +188,8 @@ async def chat(query: str):
     return {
         "query": query,
         "model": "gemini",
+        "retrieval": retrieval_method,
+        "retrieval_latency_ms": retrieval_latency,
+        "privacy_gateway": "enabled",
         "answer": answer,
     }

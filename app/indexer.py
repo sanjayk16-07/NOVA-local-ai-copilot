@@ -69,3 +69,15 @@ def create_moss_index(
         docs=moss_documents,
         wait=True,
     )
+async def search_moss(
+    query: str,
+    index_name: str = "nova-local-index",
+):
+    client = get_moss_client()
+
+    result = await client.query(
+        index_name,
+        query,
+    )
+
+    return result
