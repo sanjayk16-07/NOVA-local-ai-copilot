@@ -135,7 +135,9 @@ async def chat(query: str):
 
     except Exception as e:
 
-        print(f"Moss retrieval failed: {e}")
+        print("========== MOSS ERROR ==========")
+        print(f"Error: {e}")
+        print("================================")
 
         retrieval_method = "local-fallback"
 

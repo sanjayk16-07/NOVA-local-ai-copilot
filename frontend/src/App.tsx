@@ -40,7 +40,7 @@ function App() {
       time: "Now",
     },
     {
-      text: "Ollama connected",
+      text: "Moss semantic retrieval ready",
       time: "Now",
     },
     {
@@ -53,16 +53,18 @@ function App() {
     },
   ]);
 
- const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-   
-  // Load project files
+  const API_URL =
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000";
+
+  // --------------------------------------------------
+  // LOAD PROJECT FILES
+  // --------------------------------------------------
+
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        const response = await fetch(
-          `${API_URL}/files`
-        );
+        const response = await fetch(`${API_URL}/files`);
 
         if (!response.ok) {
           throw new Error("Failed to load files");
@@ -72,12 +74,21 @@ function App() {
 
         setFiles(data.files || []);
       } catch (error) {
-        console.error("Could not load project files", error);
+        console.error(
+          "Could not load project files",
+          error
+        );
+
+        addActivity("Could not load project files");
       }
     };
 
     loadFiles();
   }, [API_URL]);
+
+  // --------------------------------------------------
+  // ACTIVITY
+  // --------------------------------------------------
 
   const addActivity = (text: string) => {
     setActivities((prev) => [
@@ -89,11 +100,22 @@ function App() {
     ]);
   };
 
+  // --------------------------------------------------
+  // SEND CHAT MESSAGE
+  // --------------------------------------------------
+
   const sendMessage = async () => {
     if (!query.trim() || loading) return;
 
     const currentQuery = query.trim();
 
+    // Clear input
+    setQuery("");
+
+    // Start loading
+    setLoading(true);
+
+    // Add user message
     setMessages((prev) => [
       ...prev,
       {
@@ -105,32 +127,45 @@ function App() {
     addActivity(`Processing: ${currentQuery}`);
 
     try {
-  const response = await fetch(
-    `${API_URL}/chat?query=${encodeURIComponent(
-      currentQuery
-    )}`
-    );
+      const response = await fetch(
+        `${API_URL}/chat?query=${encodeURIComponent(
+          currentQuery
+        )}`
+      );
+
       if (!response.ok) {
         throw new Error("Backend request failed");
       }
 
       const data = await response.json();
 
+      // Add NOVA response
       setMessages((prev) => [
         ...prev,
-      {
-       role: "nova",
-      content: data.answer,
-      model: data.model,
-      retrieval: data.retrieval,
-      retrievalLatency: data.retrieval_latency_ms,
-      }
+        {
+          role: "nova",
+          content: data.answer,
+          model: data.model,
+          retrieval: data.retrieval,
+          retrievalLatency:
+            data.retrieval_latency_ms,
+        },
       ]);
 
+      // Activity: retrieval
+      addActivity(
+        `Moss retrieval: ${
+          data.retrieval_latency_ms ?? "fallback"
+        } ms`
+      );
+
+      // Activity: model
       addActivity(
         `Response generated using ${data.model}`
       );
-    } catch {
+    } catch (error) {
+      console.error("NOVA chat error:", error);
+
       setMessages((prev) => [
         ...prev,
         {
@@ -146,11 +181,19 @@ function App() {
     }
   };
 
+  // --------------------------------------------------
+  // OPEN PROJECT FILE
+  // --------------------------------------------------
+
   const openFile = (file: ProjectFile) => {
     setSelectedFile(file);
 
     addActivity(`Opened ${file.path}`);
   };
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
 
   return (
     <div
@@ -161,8 +204,13 @@ function App() {
       {/* SIDEBAR */}
 
       <aside className="sidebar">
+
+        {/* BRAND */}
+
         <div className="brand">
-          <div className="brand-mark">N</div>
+          <div className="brand-mark">
+            N
+          </div>
 
           <div>
             <div className="brand-name">
@@ -175,11 +223,16 @@ function App() {
           </div>
         </div>
 
+        {/* WORKSPACE */}
+
         <div className="workspace-label">
           WORKSPACE
         </div>
 
         <nav>
+
+          {/* CHAT */}
+
           <button
             className={`nav-item ${
               activePage === "chat"
@@ -194,6 +247,8 @@ function App() {
             <span>⌘</span>
             Chat
           </button>
+
+          {/* PROJECT */}
 
           <button
             className={`nav-item ${
@@ -210,6 +265,8 @@ function App() {
             Project
           </button>
 
+          {/* ACTIVITY */}
+
           <button
             className={`nav-item ${
               activePage === "activity"
@@ -224,17 +281,22 @@ function App() {
             <span>◌</span>
             Activity
           </button>
+
         </nav>
 
         {/* PROJECT FILES */}
 
         <div className="sidebar-section">
+
           <div className="workspace-label">
             PROJECT
           </div>
 
           <div className="project">
-            <span className="folder">▾</span>
+            <span className="folder">
+              ▾
+            </span>
+
             sample-project
           </div>
 
@@ -242,75 +304,109 @@ function App() {
             <button
               className="file"
               key={file.path}
-              onClick={() => openFile(file)}
+              onClick={() =>
+                openFile(file)
+              }
             >
               <span>◇</span>
               {file.path}
             </button>
           ))}
+
         </div>
 
-        {/* SYSTEM */}
+        {/* SYSTEM STATUS */}
 
         <div className="system-status">
+
           <div className="workspace-label">
             SYSTEM
           </div>
 
-          <div className="system-row">
-            <span className="online"></span>
-            Ollama
-            <span className="system-value">
-              Local
-            </span>
-          </div>
+          {/* Moss */}
 
           <div className="system-row">
             <span className="online"></span>
+
+            Moss
+
+            <span className="system-value">
+              Semantic
+            </span>
+          </div>
+
+          {/* Watchdog */}
+
+          <div className="system-row">
+            <span className="online"></span>
+
             Watchdog
+
             <span className="system-value">
               Active
             </span>
           </div>
 
+          {/* Privacy */}
+
           <div className="system-row">
             <span className="online"></span>
+
             Privacy
+
             <span className="system-value">
               Protected
             </span>
           </div>
 
+          {/* Gemini */}
+
           <div className="system-row">
             <span className="online"></span>
+
             Gemini
+
             <span className="system-value">
               Ready
             </span>
           </div>
+
         </div>
 
+        {/* FOOTER */}
+
         <div className="sidebar-footer">
+
           <div className="security-icon">
             ◉
           </div>
 
           <div>
-            <strong>Local-first</strong>
+            <strong>
+              Local-first
+            </strong>
 
             <span>
               Your code stays yours.
             </span>
           </div>
+
         </div>
+
       </aside>
 
       {/* MAIN */}
 
       <main className="main">
+
+        {/* TOP BAR */}
+
         <header className="topbar">
+
           <div>
+
             <div className="page-title">
+
               {activePage === "chat" &&
                 "NOVA Assistant"}
 
@@ -319,9 +415,11 @@ function App() {
 
               {activePage === "activity" &&
                 "System Activity"}
+
             </div>
 
             <div className="page-subtitle">
+
               {activePage === "chat" &&
                 "Project-aware developer intelligence"}
 
@@ -330,13 +428,19 @@ function App() {
 
               {activePage === "activity" &&
                 "Monitor NOVA operations"}
+
             </div>
+
           </div>
 
           <div className="top-actions">
+
             <div className="connection">
+
               <span className="online"></span>
+
               System Online
+
             </div>
 
             {/* THEME BUTTON */}
@@ -352,18 +456,30 @@ function App() {
                   : "Switch to dark mode"
               }
             >
-              {darkMode ? "☀" : "☾"}
+              {darkMode
+                ? "☀"
+                : "☾"}
             </button>
+
           </div>
+
         </header>
 
-        {/* CHAT PAGE */}
+        {/* ==================================================
+            CHAT PAGE
+        ================================================== */}
 
         {activePage === "chat" && (
           <>
+
             <section className="chat">
+
               {messages.length === 0 ? (
+
+                /* WELCOME */
+
                 <div className="welcome">
+
                   <div className="nova-orb">
                     <div>N</div>
                   </div>
@@ -376,6 +492,7 @@ function App() {
                   <h1>
                     Build faster.
                     <br />
+
                     <span>
                       Keep your code private.
                     </span>
@@ -388,7 +505,10 @@ function App() {
                     raw source code to the cloud.
                   </p>
 
+                  {/* SUGGESTIONS */}
+
                   <div className="suggestions">
+
                     <button
                       onClick={() =>
                         setQuery(
@@ -397,7 +517,9 @@ function App() {
                       }
                     >
                       <span>⌁</span>
+
                       Explain this project
+
                     </button>
 
                     <button
@@ -408,7 +530,9 @@ function App() {
                       }
                     >
                       <span>◈</span>
+
                       Analyze architecture
+
                     </button>
 
                     <button
@@ -419,92 +543,187 @@ function App() {
                       }
                     >
                       <span>✦</span>
+
                       Improve my code
+
                     </button>
+
                   </div>
+
                 </div>
+
               ) : (
+
+                /* MESSAGES */
+
                 <div className="messages">
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`message ${message.role}`}
-                    >
+
+                  {messages.map(
+                    (message, index) => (
+
+                      <div
+                        key={index}
+                        className={`message ${message.role}`}
+                      >
+
+                        <div className="message-avatar">
+
+                          {message.role === "user"
+                            ? "U"
+                            : "N"}
+
+                        </div>
+
+                        <div className="message-content">
+
+                          <div className="message-header">
+
+                            <strong>
+
+                              {message.role === "user"
+                                ? "You"
+                                : "NOVA"}
+
+                            </strong>
+
+                            {message.model && (
+
+                              <span className="model-badge">
+
+                                {message.model === "qwen"
+                                  ? "LOCAL · QWEN"
+                                  : "CLOUD · GEMINI"}
+
+                              </span>
+
+                            )}
+
+                          </div>
+
+                          <div className="message-text">
+
+                            {message.content}
+
+                          </div>
+
+                          {/* RETRIEVAL INFO */}
+
+                          {message.role === "nova" && (
+
+                            <div className="message-meta">
+
+                              🔎{" "}
+
+                              {message.retrieval === "moss"
+                                ? "Moss Retrieval"
+                                : "Local Fallback"}
+
+                              {message.retrievalLatency !==
+                                null &&
+                                message.retrievalLatency !==
+                                  undefined &&
+                                ` · ${message.retrievalLatency} ms`}
+
+                            </div>
+
+                          )}
+
+                        </div>
+
+                      </div>
+
+                    )
+                  )}
+
+                  {/* LOADING */}
+
+                  {loading && (
+
+                    <div className="message nova">
+
                       <div className="message-avatar">
-                        {message.role === "user" ? "U" : "N"}
+                        N
                       </div>
 
                       <div className="message-content">
+
                         <div className="message-header">
+
                           <strong>
-                            {message.role === "user" ? "You" : "NOVA"}
+                            NOVA
                           </strong>
 
-                          {message.model && (
-                            <span className="model-badge">
-                              {message.model === "qwen"
-                                ? "LOCAL · QWEN"
-                                : "CLOUD · GEMINI"}
-                            </span>
-                          )}
                         </div>
 
                         <div className="message-text">
-                          {message.content}
+
+                          Searching project context...
+
                         </div>
 
-                        {message.role === "nova" && (
-                          <div className="message-meta">
-                            🔎{" "}
-                            {message.retrieval === "moss"
-                              ? "Moss Retrieval"
-                              : "Local Fallback"}
-                            {message.retrievalLatency !== null &&
-                              message.retrievalLatency !== undefined &&
-                              ` · ${message.retrievalLatency} ms`}
-                          </div>
-                        )}
+                        <div className="message-meta">
+
+                          🔎 Moss → Privacy Gateway → Gemini
+
+                        </div>
+
                       </div>
+
                     </div>
-                  ))}
+
+                  )}
+
                 </div>
+
               )}
-              </section>
+
+            </section>
 
             {/* CHAT INPUT */}
 
             <div className="composer-wrapper">
+
               <div className="composer">
+
                 <textarea
                   value={query}
                   onChange={(e) =>
                     setQuery(e.target.value)
                   }
                   onKeyDown={(e) => {
+
                     if (
                       e.key === "Enter" &&
                       !e.shiftKey
                     ) {
+
                       e.preventDefault();
+
                       sendMessage();
+
                     }
+
                   }}
                   placeholder="Ask NOVA about your code..."
                   rows={1}
+                  disabled={loading}
                 />
 
                 <button
                   className="send-button"
                   onClick={sendMessage}
                   disabled={
-                    !query.trim() || loading
+                    !query.trim() ||
+                    loading
                   }
                 >
-                  ↑
+                  {loading ? "..." : "↑"}
                 </button>
+
               </div>
 
               <div className="composer-footer">
+
                 <span>
                   Enter to send · Shift + Enter
                   for new line
@@ -513,37 +732,61 @@ function App() {
                 <span>
                   🔒 Local-first AI
                 </span>
+
               </div>
+
             </div>
+
           </>
         )}
 
-        {/* PROJECT PAGE */}
+        {/* ==================================================
+            PROJECT PAGE
+        ================================================== */}
 
         {activePage === "project" && (
+
           <section className="page-content">
+
             <div className="section-heading">
+
               <div>
-                <h2>Project Files</h2>
+
+                <h2>
+                  Project Files
+                </h2>
+
                 <p>
-                  Files discovered by NOVA's local
-                  file scanner.
+                  Files discovered by NOVA's
+                  local file scanner.
                 </p>
+
               </div>
 
               <div className="file-count">
+
                 {files.length} files
+
               </div>
+
             </div>
 
             <div className="project-grid">
+
+              {/* FILE LIST */}
+
               <div className="file-list-card">
+
                 {files.length === 0 ? (
+
                   <div className="empty-state">
                     No project files found.
                   </div>
+
                 ) : (
+
                   files.map((file) => (
+
                     <button
                       key={file.path}
                       className={`project-file ${
@@ -556,11 +799,13 @@ function App() {
                         openFile(file)
                       }
                     >
+
                       <span className="file-icon">
                         ◇
                       </span>
 
                       <span>
+
                         <strong>
                           {file.path}
                         </strong>
@@ -568,16 +813,27 @@ function App() {
                         <small>
                           Local project file
                         </small>
+
                       </span>
+
                     </button>
+
                   ))
+
                 )}
+
               </div>
 
+              {/* CODE VIEWER */}
+
               <div className="code-card">
+
                 {selectedFile ? (
+
                   <>
+
                     <div className="code-header">
+
                       <span>
                         {selectedFile.path}
                       </span>
@@ -585,55 +841,86 @@ function App() {
                       <span className="local-badge">
                         LOCAL
                       </span>
+
                     </div>
 
                     <pre>
+
                       <code>
                         {selectedFile.content}
                       </code>
+
                     </pre>
+
                   </>
+
                 ) : (
+
                   <div className="empty-state">
+
                     Select a file to inspect it.
+
                   </div>
+
                 )}
+
               </div>
+
             </div>
+
           </section>
+
         )}
 
-        {/* ACTIVITY PAGE */}
+        {/* ==================================================
+            ACTIVITY PAGE
+        ================================================== */}
 
         {activePage === "activity" && (
+
           <section className="page-content">
+
             <div className="section-heading">
+
               <div>
-                <h2>NOVA Activity</h2>
+
+                <h2>
+                  NOVA Activity
+                </h2>
+
                 <p>
-                  Recent operations performed by
-                  the assistant.
+                  Recent operations performed
+                  by the assistant.
                 </p>
+
               </div>
 
               <div className="status-pill">
+
                 <span className="online"></span>
+
                 Live
+
               </div>
+
             </div>
 
             <div className="activity-card">
+
               {activities.map(
                 (activity, index) => (
+
                   <div
                     className="activity-item"
                     key={index}
                   >
+
                     <div className="activity-dot">
                       <span></span>
                     </div>
 
                     <div className="activity-info">
+
                       <strong>
                         {activity.text}
                       </strong>
@@ -641,14 +928,22 @@ function App() {
                       <small>
                         {activity.time}
                       </small>
+
                     </div>
+
                   </div>
+
                 )
               )}
+
             </div>
+
           </section>
+
         )}
+
       </main>
+
     </div>
   );
 }

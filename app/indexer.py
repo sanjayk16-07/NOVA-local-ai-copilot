@@ -75,6 +75,9 @@ async def search_moss(
 ):
     client = get_moss_client()
 
+    # Load the local Moss index before querying
+    await client.load_index(index_name)
+
     result = await client.query(
         index_name,
         query,

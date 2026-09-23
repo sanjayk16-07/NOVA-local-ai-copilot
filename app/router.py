@@ -21,4 +21,5 @@ def choose_model(query: str) -> str:
         if keyword in query_lower:
             return "cloud"
 
-    return "local"
+    # Use Gemini for normal queries while local Ollama is unavailable
+    return "cloud"
